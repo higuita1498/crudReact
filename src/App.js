@@ -1,14 +1,27 @@
-import React, { useState } from 'react'
+//useState y useEffect se consideran "hoooks" useEffect sirve para cuando la pagina cargue
+import React, { useState, useEffect } from 'react'
 import { isEmpty, size } from 'lodash'
-import shortid from 'shortid'
+//shortid usado para guardar variables en memoria
+// import shortid from 'shortid'
+import { addDocument, deleteDocument, getCollection, updateDocument } from './actions'
 
 function App() {
   const [task, setTask] = useState("")
   const [tasks, setTasks] = useState([])
   const [editMode, seteditMode] = useState(false)
   const [id, setid] = useState("")
-
   const [error, setError] = useState(null)
+
+
+  useEffect(() => {
+    //como necesitamos que se ejecute solo cuando cargue la página hacemos esto:
+    (async () => {
+      const result = await getCollection("tasks")
+      if(result.statusResponse){
+        setTasks(result.data)
+      }
+    })()
+  }, [])
 
   const validateForm = () => {
 
@@ -23,7 +36,7 @@ function App() {
     return isValid
   }
 
-  const addTask = (e) => {
+  const addTask = async(e) => {
     //para evitar que nos recargue la pagina por el submit
     e.preventDefault()
     
@@ -31,22 +44,22 @@ function App() {
       return
     }
 
-    const newTask = {
-      id: shortid.generate(),
-      name: task
+    const result = await addDocument("tasks", {name:task})
+
+    if(!result.statusResponse){
+      setError(result.error)
+      return
     }
 
-    setTasks([...tasks, newTask])
+    //para guardar la tarea en memoria.
+    // const newTask = {
+    //   id: shortid.generate(),
+    //   name: task
+    // }
+
+    setTasks([...tasks, {id:result.data.id, name:task}])
     //Hace referencia al value del input
     setTask("")
-
-  }
-
-
-  //Metodo que lista las tareas filtradas por que elimnamos una tarea
-  const deleteTask = (id) => {
-    const filteredTasks = tasks.filter(task => task.id !== id)
-    setTasks(filteredTasks)
   }
 
   const editTask = (theTask) => {
@@ -55,11 +68,17 @@ function App() {
     setid(theTask.id)
   }
 
-  const updateTask = (e) => {
+  const updateTask = async(e) => {
     //para evitar que nos recargue la pagina por el submit
     e.preventDefault()
-    if(isEmpty(task)){
-      console.log("task empty")
+    if(!validateForm()){
+      return 
+    }
+
+    const result = await updateDocument("tasks",id, {name:task})
+
+    if(!result.statusResponse){
+      setError(result.error)
       return 
     }
 
@@ -75,6 +94,20 @@ function App() {
     setid("")
 
   }
+
+    //Metodo que lista las tareas filtradas por que elimnamos una tarea
+    const deleteTask = async(id) => {
+
+      const result = await deleteDocument("tasks", id)
+  
+      if(!result.statusResponse){
+        setError(result.error)
+        return
+      }
+  
+      const filteredTasks = tasks.filter(task => task.id !== id)
+      setTasks(filteredTasks)
+    }
 
 
   return (
